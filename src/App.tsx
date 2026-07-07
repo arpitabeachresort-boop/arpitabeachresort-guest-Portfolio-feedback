@@ -25,6 +25,10 @@ import {
   appendFeedbackToGoogleSheet, 
   fetchFeedbackFromGoogleSheet,
   sendManagerAlertEmail,
+  saveFeedbackToFirestore,
+  fetchFeedbackFromFirestore,
+  saveTicketToFirestore,
+  fetchTicketsFromFirestore,
   GoogleResources 
 } from './lib/workspace';
 import GuestForm from './components/GuestForm';
@@ -160,26 +164,71 @@ export default function App() {
     );
   }, []);
 
-  // Fetch feedback from Google Spreadsheet
+  // Load initial submissions and tickets from Firestore when staff dashboard is viewed and user is authenticated
+  useEffect(() => {
+    if (viewMode === 'STAFF' && user) {
+      const loadInitialCloudData = async () => {
+        try {
+          const cloudSubmissions = await fetchFeedbackFromFirestore();
+          if (cloudSubmissions && cloudSubmissions.length > 0) {
+            setSubmissions(cloudSubmissions);
+          }
+          const cloudTickets = await fetchTicketsFromFirestore();
+          if (cloudTickets && cloudTickets.length > 0) {
+            setTickets(cloudTickets);
+          }
+        } catch (e) {
+          console.warn('Failed to load initial data from Firestore:', e);
+        }
+      };
+      loadInitialCloudData();
+    }
+  }, [viewMode, user]);
+
+  // Fetch feedback from Google Spreadsheet and Firestore, keeping them beautifully in sync
   const syncFromGoogleSheet = useCallback(async (accessToken: string, spreadsheetId: string, silent: boolean = false) => {
     if (!silent) setIsSyncing(true);
     try {
+      // 1. Fetch from Google Sheet
       const sheetFeedbacks = await fetchFeedbackFromGoogleSheet(accessToken, spreadsheetId);
-      if (sheetFeedbacks.length > 0) {
-        setSubmissions(prev => {
-          // Merge based on feedback ID, favoring newly fetched sheet items
-          const merged = [...prev];
-          sheetFeedbacks.forEach(sheetItem => {
-            const idx = merged.findIndex(m => m.id === sheetItem.id);
-            if (idx >= 0) {
-              merged[idx] = sheetItem;
-            } else {
-              merged.unshift(sheetItem);
-            }
-          });
-          return merged;
-        });
+      
+      // 2. Fetch from Firestore (cloud master database)
+      const firestoreFeedbacks = await fetchFeedbackFromFirestore();
+      
+      // 3. Find submissions in Firestore that are missing from Google Sheets
+      const sheetIds = new Set(sheetFeedbacks.map(s => s.id));
+      const missingFromSheet = firestoreFeedbacks.filter(f => !sheetIds.has(f.id));
+      
+      if (missingFromSheet.length > 0) {
+        console.log(`Found ${missingFromSheet.length} submissions in Firestore missing from Google Sheets. Syncing now...`);
+        for (const sub of missingFromSheet) {
+          try {
+            await appendFeedbackToGoogleSheet(accessToken, spreadsheetId, sub);
+            sheetFeedbacks.push(sub);
+          } catch (e) {
+            console.error(`Failed to append submission ${sub.id} to Google Sheet:`, e);
+          }
+        }
       }
+      
+      // 4. Merge Firestore & Google Sheets data
+      setSubmissions(prev => {
+        const merged = [...firestoreFeedbacks];
+        const firestoreIds = new Set(firestoreFeedbacks.map(s => s.id));
+        
+        // Also check if there are any that exist in Google Sheets but not Firestore (manual entries or Google Form backups)
+        sheetFeedbacks.forEach(sheetItem => {
+          if (!firestoreIds.has(sheetItem.id)) {
+            merged.push(sheetItem);
+            // Proactively upload back-filled item to Firestore as well!
+            saveFeedbackToFirestore(sheetItem).catch(err => console.error("Error backing up sheet item to Firestore:", err));
+          }
+        });
+        
+        // Sort descending by timestamp
+        merged.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        return merged;
+      });
     } catch (error: any) {
       const errMsg = error?.message || '';
       const isAuthError = errMsg.includes('401') || errMsg.toLowerCase().includes('unauthorized') || errMsg.toLowerCase().includes('invalid credentials');
@@ -377,7 +426,10 @@ export default function App() {
         throw new Error('Device is offline');
       }
 
-      // 1. Write to Google Sheet if Workspace link is active
+      // 1. Save to Firestore (cloud master database, open to guest creation)
+      await saveFeedbackToFirestore(submission);
+
+      // 2. Write to Google Sheet if Workspace link is active
       if (token && googleResources?.spreadsheetId) {
         await appendFeedbackToGoogleSheet(token, googleResources.spreadsheetId, submission);
       }
@@ -389,7 +441,7 @@ export default function App() {
     try {
       const augmentedSubmission = { ...submission, synced: !offline };
 
-      // 2. Add to local React states immediately
+      // Add to local React states immediately
       setSubmissions(prev => [augmentedSubmission, ...prev]);
 
       if (offline) {
@@ -400,7 +452,7 @@ export default function App() {
           return updated;
         });
       } else {
-        // 3. Trigger email notification to manager's inbox (arpitabeachresort@gmail.com) if rating needs improvement (1, 2 or 3 stars)
+        // Trigger email notification to manager's inbox (arpitabeachresort@gmail.com) if rating needs improvement (1, 2 or 3 stars)
         const ratingsArray = Object.values(submission.ratings);
         const hasNeedsImprovement = ratingsArray.some(r => r <= 3);
         if (hasNeedsImprovement && token) {
@@ -437,6 +489,9 @@ export default function App() {
           followUpRequired: true
         };
         setTickets(prev => [newTicket, ...prev]);
+        if (!offline) {
+          await saveTicketToFirestore(newTicket);
+        }
       }
 
       return { success: true, offline };
@@ -451,13 +506,20 @@ export default function App() {
   };
 
   // Add operational ticket manually
-  const handleAddTicket = (newTicket: InternalTicket) => {
+  const handleAddTicket = async (newTicket: InternalTicket) => {
     setTickets(prev => [newTicket, ...prev]);
+    try {
+      await saveTicketToFirestore(newTicket);
+    } catch (e) {
+      console.error("Error saving manual ticket to Firestore:", e);
+    }
     // Also update associated feedback recovery status
     setSubmissions(prev => {
       return prev.map(sub => {
         if (sub.id === newTicket.feedbackId) {
-          return { ...sub, recoveryStatus: 'In Progress' };
+          const updatedSub = { ...sub, recoveryStatus: 'In Progress' as const };
+          saveFeedbackToFirestore(updatedSub).catch(e => console.error("Error updating feedback recovery status in Firestore:", e));
+          return updatedSub;
         }
         return sub;
       });
@@ -465,15 +527,22 @@ export default function App() {
   };
 
   // Update operational ticket (e.g. close signature)
-  const handleUpdateTicket = (updatedTicket: InternalTicket) => {
+  const handleUpdateTicket = async (updatedTicket: InternalTicket) => {
     setTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
+    try {
+      await saveTicketToFirestore(updatedTicket);
+    } catch (e) {
+      console.error("Error updating ticket in Firestore:", e);
+    }
     
     // Also mark feedback as resolved if signed off
     if (updatedTicket.managerSignature !== '') {
       setSubmissions(prev => {
         return prev.map(sub => {
           if (sub.id === updatedTicket.feedbackId) {
-            return { ...sub, recoveryStatus: 'Resolved' };
+            const updatedSub = { ...sub, recoveryStatus: 'Resolved' as const };
+            saveFeedbackToFirestore(updatedSub).catch(e => console.error("Error resolving feedback recovery status in Firestore:", e));
+            return updatedSub;
           }
           return sub;
         });

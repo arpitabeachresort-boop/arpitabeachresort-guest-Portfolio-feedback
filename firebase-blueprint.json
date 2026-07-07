@@ -1,0 +1,125 @@
+{
+  "entities": {
+    "FeedbackSubmission": {
+      "title": "FeedbackSubmission",
+      "description": "Guest feedback submission recorded from the resort application.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the submission."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Submission creation timestamp."
+        },
+        "guestInfo": {
+          "type": "object",
+          "description": "Information about the resort guest."
+        },
+        "ratings": {
+          "type": "object",
+          "description": "Individual ratings score maps."
+        },
+        "outstandingStaff": {
+          "type": "string",
+          "description": "Name of outstanding staff nominated."
+        },
+        "comments": {
+          "type": "string",
+          "description": "Feedback comments left by guest."
+        },
+        "suggestions": {
+          "type": "string",
+          "description": "Suggestions left by guest."
+        },
+        "complaintCategory": {
+          "type": "string",
+          "description": "Optional category if a complaint is filed."
+        },
+        "requiresRecovery": {
+          "type": "boolean",
+          "description": "Flag to mark if hospitality service recovery is needed."
+        },
+        "recoveryStatus": {
+          "type": "string",
+          "enum": ["Pending", "In Progress", "Resolved"],
+          "description": "Active recovery state."
+        },
+        "isRepeatGuest": {
+          "type": "boolean",
+          "description": "Whether the guest is a repeating customer."
+        }
+      },
+      "required": ["id", "timestamp", "guestInfo", "ratings", "requiresRecovery"]
+    },
+    "InternalTicket": {
+      "title": "InternalTicket",
+      "description": "An operational ticket generated to handle service recovery.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Ticket ID e.g. TK-342"
+        },
+        "feedbackId": {
+          "type": "string",
+          "description": "Reference ID to parent feedback submission."
+        },
+        "department": {
+          "type": "string",
+          "description": "Resort department."
+        },
+        "issueCategory": {
+          "type": "string",
+          "description": "Issue category."
+        },
+        "priorityLevel": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High", "VIP"],
+          "description": "Priority level."
+        },
+        "assignedTo": {
+          "type": "string",
+          "description": "Staff member assigned."
+        },
+        "rootCause": {
+          "type": "string",
+          "description": "Identified root cause."
+        },
+        "correctiveAction": {
+          "type": "string",
+          "description": "Action details taken."
+        },
+        "completionDate": {
+          "type": "string",
+          "description": "Expected or finished date."
+        },
+        "managerSignature": {
+          "type": "string",
+          "description": "Manager signature content."
+        },
+        "closedBy": {
+          "type": "string",
+          "description": "Username who closed the ticket."
+        },
+        "followUpRequired": {
+          "type": "boolean",
+          "description": "Followup flag."
+        }
+      },
+      "required": ["id", "feedbackId", "department", "issueCategory", "priorityLevel"]
+    }
+  },
+  "firestore": {
+    "/submissions/{submissionId}": {
+      "schema": "FeedbackSubmission",
+      "description": "Primary public/guest submission records."
+    },
+    "/tickets/{ticketId}": {
+      "schema": "InternalTicket",
+      "description": "Operational tickets created for guest satisfaction follow-ups."
+    }
+  }
+}

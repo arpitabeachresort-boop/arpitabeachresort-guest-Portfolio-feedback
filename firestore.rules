@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net default-deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email.lower() == "arpitabeachresort@gmail.com" ||
+        request.auth.token.email.lower() == "gm@arpitabeachresort.in" ||
+        request.auth.token.email.lower().matches(".*@arpitabeachresort\\.(in|com)")
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidSubmission(data) {
+      return data.keys().hasAll(['id', 'timestamp', 'guestInfo', 'ratings', 'requiresRecovery'])
+        && data.id is string && data.id.size() <= 128
+        && data.timestamp is string && data.timestamp.size() <= 50
+        && data.guestInfo is map
+        && data.ratings is map
+        && data.requiresRecovery is bool;
+    }
+
+    function isValidTicket(data) {
+      return data.keys().hasAll(['id', 'feedbackId', 'department', 'issueCategory', 'priorityLevel'])
+        && data.id is string && data.id.size() <= 128
+        && data.feedbackId is string && data.feedbackId.size() <= 128
+        && data.department is string && data.department.size() <= 100
+        && data.issueCategory is string && data.issueCategory.size() <= 100
+        && data.priorityLevel is string && data.priorityLevel.size() <= 20;
+    }
+
+    // Submissions collection
+    match /submissions/{submissionId} {
+      allow read: if isAdmin();
+      allow create: if isValidId(submissionId) && isValidSubmission(request.resource.data);
+      allow update: if isAdmin() && isValidSubmission(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Tickets collection
+    match /tickets/{ticketId} {
+      allow read: if isAdmin();
+      allow create: if isValidId(ticketId) && isValidTicket(request.resource.data);
+      allow update: if isAdmin() && isValidTicket(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}

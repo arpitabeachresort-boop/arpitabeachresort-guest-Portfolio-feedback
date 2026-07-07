@@ -1,11 +1,128 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  setDoc, 
+  getDocs, 
+  query, 
+  orderBy, 
+  getDocFromServer
+} from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { FeedbackSubmission, GuestInfo } from '../types';
+import { FeedbackSubmission, GuestInfo, InternalTicket } from '../types';
 
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// Use custom firestoreDatabaseId if specified, otherwise default database
+const dbId = (firebaseConfig as any).firestoreDatabaseId;
+export const db = dbId ? getFirestore(app, dbId) : getFirestore(app);
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+// Save Feedback Submission to Firestore
+export const saveFeedbackToFirestore = async (submission: FeedbackSubmission): Promise<void> => {
+  const path = `submissions/${submission.id}`;
+  try {
+    const docRef = doc(db, 'submissions', submission.id);
+    const sanitized = JSON.parse(JSON.stringify(submission));
+    await setDoc(docRef, sanitized);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+};
+
+// Fetch Feedback Submissions from Firestore
+export const fetchFeedbackFromFirestore = async (): Promise<FeedbackSubmission[]> => {
+  const path = 'submissions';
+  try {
+    const querySnapshot = await getDocs(query(collection(db, 'submissions'), orderBy('timestamp', 'desc')));
+    const list: FeedbackSubmission[] = [];
+    querySnapshot.forEach((d) => {
+      list.push(d.data() as FeedbackSubmission);
+    });
+    return list;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+    return [];
+  }
+};
+
+// Save Internal Ticket to Firestore
+export const saveTicketToFirestore = async (ticket: InternalTicket): Promise<void> => {
+  const path = `tickets/${ticket.id}`;
+  try {
+    const docRef = doc(db, 'tickets', ticket.id);
+    const sanitized = JSON.parse(JSON.stringify(ticket));
+    await setDoc(docRef, sanitized);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+};
+
+// Fetch Internal Tickets from Firestore
+export const fetchTicketsFromFirestore = async (): Promise<InternalTicket[]> => {
+  const path = 'tickets';
+  try {
+    const querySnapshot = await getDocs(collection(db, 'tickets'));
+    const list: InternalTicket[] = [];
+    querySnapshot.forEach((d) => {
+      list.push(d.data() as InternalTicket);
+    });
+    return list;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+    return [];
+  }
+};
 
 // Configure Google Auth Provider
 export const provider = new GoogleAuthProvider();
@@ -302,7 +419,7 @@ export const createSpreadsheetAndForm = async (accessToken: string, hotelName: s
   });
 
   if (!batchResponse.ok) {
-    console.error('Failed to configure Google Form questions:', await batchResponse.text());
+    console.warn('Failed to configure Google Form questions:', await batchResponse.text());
   }
 
   // Pre-seed with one initial welcome row in Sheet
@@ -338,7 +455,7 @@ export const createSpreadsheetAndForm = async (accessToken: string, hotelName: s
       })
     });
   } catch (e) {
-    console.error('Error pre-seeding sheet:', e);
+    console.warn('Warning pre-seeding sheet:', e);
   }
 
   return {
@@ -424,11 +541,11 @@ export const ensureFeedbackResponsesSheetExists = async (
           })
         });
       } else {
-        console.error('Failed to create sheet tab:', await createResponse.text());
+        console.warn('Failed to create sheet tab:', await createResponse.text());
       }
     }
   } catch (error) {
-    console.error('Error in ensureFeedbackResponsesSheetExists:', error);
+    console.warn('Warning in ensureFeedbackResponsesSheetExists (network/API call):', error);
   }
 };
 
@@ -670,12 +787,12 @@ export const sendManagerAlertEmail = async (
     });
 
     if (!response.ok) {
-      console.error('Gmail API send failed:', await response.text());
+      console.warn('Gmail API send failed:', await response.text());
       return false;
     }
     return true;
   } catch (error) {
-    console.error('Error sending alert email:', error);
+    console.warn('Error sending alert email:', error);
     return false;
   }
 };
