@@ -1,0 +1,6 @@
+{
+  "name": "ARPITA BEACH RESORT Guest Feedback Form",
+  "description": "An ultra-premium, department-wise guest feedback management system and real-time operations dashboard for Arpita Beach Resort in Chandipur, Odisha, India. Inspired by Forbes Five-Star hospitality standards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
