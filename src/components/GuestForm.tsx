@@ -10,6 +10,7 @@ import {
   Calendar, 
   Compass, 
   Send, 
+  Gift,
   CheckCircle2, 
   ArrowRight, 
   ArrowLeft,
@@ -776,9 +777,57 @@ export default function GuestForm({ onSubmit, isSubmitting }: GuestFormProps) {
               </div>
             </div>
           ) : (
-            <p className="text-slate-600 leading-relaxed mb-8 text-sm px-4">
-              Dear <span className="font-semibold text-navy">{guestInfo.name}</span> , {t('successMsg')}
-            </p>
+            <div>
+              <p className="text-slate-600 leading-relaxed mb-6 text-sm px-4">
+                Dear <span className="font-semibold text-navy">{guestInfo.name}</span> , {t('successMsg')}
+              </p>
+
+              {/* COMPLIMENTARY ₹5000 DIGITAL GIFT VOUCHER CERTIFICATE */}
+              <div className="mb-8 max-w-md mx-auto p-0.5 rounded-3xl bg-gradient-to-r from-[#aa841d] via-yellow-400 to-[#aa841d] shadow-lg relative overflow-hidden">
+                {/* Ticket Background */}
+                <div className="bg-white dark:bg-slate-900 rounded-[22px] p-6 relative overflow-hidden text-left border border-gold/15">
+                  {/* Decorative side notches to look like a real ticket */}
+                  <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#f8f9fa] dark:bg-slate-950 border-r border-gold/20"></div>
+                  <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#f8f9fa] dark:bg-slate-950 border-l border-gold/20"></div>
+
+                  {/* Decorative Sparkle inside the card */}
+                  <div className="absolute top-4 right-4 text-[#aa841d] opacity-25">
+                    <Sparkles className="w-6 h-6 animate-pulse" />
+                  </div>
+
+                  <div className="text-center border-b border-dashed border-slate-200 dark:border-slate-800 pb-4 mb-4">
+                    <span className="text-[10px] font-sans font-extrabold tracking-[0.3em] text-[#aa841d] uppercase block">ARPITA BEACH RESORT</span>
+                    <h3 className="font-serif text-lg font-bold text-navy dark:text-white mt-1">Official Gift Voucher</h3>
+                    <span className="inline-block px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-[10px] font-sans font-bold tracking-wider mt-2 uppercase">ISSUED SECURELY</span>
+                  </div>
+
+                  <div className="space-y-3.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-sans font-bold text-slate-400 tracking-wider uppercase">VALUE</span>
+                      <span className="font-serif text-xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">₹5,000.00 INR</span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-sans font-bold text-slate-400 tracking-wider uppercase">GUEST NAME</span>
+                      <span className="text-xs font-sans font-extrabold text-navy dark:text-white uppercase tracking-wide truncate max-w-[200px]">
+                        {guestInfo.name || 'Valued Guest'}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-sans font-bold text-slate-400 tracking-wider uppercase">REDEMPTION CODE</span>
+                      <span className="font-mono text-xs font-bold text-[#aa841d] bg-[#aa841d]/10 px-2.5 py-1 rounded border border-[#aa841d]/20 tracking-widest select-all">
+                        ARP-V5000-{guestInfo.roomNumber ? guestInfo.roomNumber.replace(/\s+/g, '').toUpperCase() : 'GST'}-{Math.random().toString(36).substr(2, 4).toUpperCase()}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 text-[10px] text-slate-400 dark:text-slate-500 text-center italic leading-relaxed">
+                      "Valid for 1 year from today. Redeemable on accommodation, dining, or resort activities on your future visit to Arpita Beach Resort."
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {(requiresRecovery || Object.values(ratings).some((v: any) => v <= 2) || sentimentResult.sentiment === 'Urgent') && (
@@ -969,6 +1018,45 @@ export default function GuestForm({ onSubmit, isSubmitting }: GuestFormProps) {
                   START SURVEY
                   <ArrowRight className="w-4 h-4" />
                 </button>
+              </div>
+
+              {/* GORGEOUS GUEST GIFT VOUCHER INCENTIVE CARD */}
+              <div className="pt-2 max-w-md mx-auto">
+                <motion.div
+                  type="button"
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setStep(1)}
+                  className="mt-2 p-5 rounded-3xl border border-dashed border-[#aa841d]/50 bg-gradient-to-br from-[#FDFCF7] to-[#F3EDE4] dark:from-slate-900/80 dark:to-slate-800/50 text-center relative overflow-hidden shadow-md hover:shadow-lg transition-all cursor-pointer select-none group border-2"
+                >
+                  {/* Decorative golden sparkle and gift icons in background */}
+                  <div className="absolute top-2 right-3 text-[#aa841d] opacity-20 group-hover:opacity-60 transition-opacity">
+                    <Sparkles className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div className="absolute bottom-2 left-3 text-[#aa841d] opacity-15 group-hover:opacity-40 transition-opacity">
+                    <Gift className="w-6 h-6" />
+                  </div>
+
+                  <div className="flex items-center gap-4 text-left">
+                    {/* Gilded Stamp / Gift Box Icon */}
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#aa841d] to-[#d4af37] flex items-center justify-center shrink-0 shadow-md group-hover:scale-110 transition-transform duration-300">
+                      <Gift className="w-6 h-6 text-white" />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[9px] font-sans font-extrabold tracking-[0.25em] text-[#aa841d] dark:text-gold uppercase">GUEST REWARD</span>
+                        <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-[9px] font-sans font-bold tracking-wide uppercase">Active Incentive</span>
+                      </div>
+                      <h4 className="font-serif text-sm md:text-base font-extrabold text-navy dark:text-white leading-snug">
+                        Get ₹5000/- Gift Voucher
+                      </h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed font-sans">
+                        After finishing all the feedback (Google / TripAdvisor), you will receive a <strong className="text-[#aa841d] dark:text-gold">₹5000 Gift Voucher</strong>. It can be redeemed on your future visit!
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
               </div>
             </motion.div>
           )}
