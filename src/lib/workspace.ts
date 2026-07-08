@@ -84,6 +84,10 @@ export const saveFeedbackToFirestore = async (submission: FeedbackSubmission): P
 export const fetchFeedbackFromFirestore = async (): Promise<FeedbackSubmission[]> => {
   const path = 'submissions';
   try {
+    if (!auth.currentUser) {
+      console.warn('fetchFeedbackFromFirestore: No authenticated user. Skipping read.');
+      return [];
+    }
     const querySnapshot = await getDocs(query(collection(db, 'submissions'), orderBy('timestamp', 'desc')));
     const list: FeedbackSubmission[] = [];
     querySnapshot.forEach((d) => {
@@ -112,6 +116,10 @@ export const saveTicketToFirestore = async (ticket: InternalTicket): Promise<voi
 export const fetchTicketsFromFirestore = async (): Promise<InternalTicket[]> => {
   const path = 'tickets';
   try {
+    if (!auth.currentUser) {
+      console.warn('fetchTicketsFromFirestore: No authenticated user. Skipping read.');
+      return [];
+    }
     const querySnapshot = await getDocs(collection(db, 'tickets'));
     const list: InternalTicket[] = [];
     querySnapshot.forEach((d) => {

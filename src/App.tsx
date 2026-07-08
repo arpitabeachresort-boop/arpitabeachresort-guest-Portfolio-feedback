@@ -166,7 +166,7 @@ export default function App() {
 
   // Load initial submissions and tickets from Firestore when staff dashboard is viewed and user is authenticated
   useEffect(() => {
-    if (viewMode === 'STAFF' && user) {
+    if (viewMode === 'STAFF' && user && isAdmin) {
       const loadInitialCloudData = async () => {
         try {
           const cloudSubmissions = await fetchFeedbackFromFirestore();
@@ -183,7 +183,7 @@ export default function App() {
       };
       loadInitialCloudData();
     }
-  }, [viewMode, user]);
+  }, [viewMode, user, isAdmin]);
 
   // Fetch feedback from Google Spreadsheet and Firestore, keeping them beautifully in sync
   const syncFromGoogleSheet = useCallback(async (accessToken: string, spreadsheetId: string, silent: boolean = false) => {
@@ -308,7 +308,7 @@ export default function App() {
 
   // Trigger Real-time Sheet Sync and polling if logged in and spreadsheet configured
   useEffect(() => {
-    if (token && googleResources?.spreadsheetId) {
+    if (viewMode === 'STAFF' && user && isAdmin && token && googleResources?.spreadsheetId) {
       // Immediate full sync
       syncFromGoogleSheet(token, googleResources.spreadsheetId, false);
 
@@ -319,7 +319,7 @@ export default function App() {
 
       return () => clearInterval(pollInterval);
     }
-  }, [token, googleResources?.spreadsheetId, syncFromGoogleSheet]);
+  }, [viewMode, user, isAdmin, token, googleResources?.spreadsheetId, syncFromGoogleSheet]);
 
   // Periodic automatic sync checker for cached offline data
   useEffect(() => {
